@@ -7,7 +7,6 @@ library(tidyverse)
 library(readxl)
 library(httr)         # EVALIDator query
 
-
 # library(magrittr)
 
 
