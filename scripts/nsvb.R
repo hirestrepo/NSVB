@@ -45,10 +45,10 @@ library(httr)         # EVALIDator query
 
 
 
-
+#
 # EVALIDator parameters ---------------------------------------------------
 
-  wc <- read_xlsx("./EVALIDator_parameters/wc.xlsx") %>% 
+  wc <- read_xlsx("./EVALIDator_parameters/wc.xlsx", sheet = "wc") %>% 
     mutate(YEAR = as.numeric(substr(EVAL_GRP, nchar(EVAL_GRP)-3, EVAL_GRP)))  
     # %>% filter(YEAR>2000)
   
@@ -56,14 +56,17 @@ library(httr)         # EVALIDator query
   
   rselected <- read_xlsx("./EVALIDator_parameters/rselected.xlsx")
   
-  argList <- list(snum= NA, 
-                  wc = NA,
-                  estOnly = "N", 
-                  outputFormat='NJSON')
+  argList<- list(snum= NA, 
+                 wc = NA,
+                 rselected = "Forest type group",
+                 cselected = "Stand origin",
+                 estOnly = "N", 
+                 outputFormat='NJSON')
+  
+  
+  
 
-
-
-
+#
 # Validating forestland area, tpa and volume bf ---------------------------
 
 
@@ -166,12 +169,17 @@ library(httr)         # EVALIDator query
   # https://www.fs.usda.gov/research/programs/fia/nsvb, 7. How does this affect previous FIA report.  
   # Variables to query: cubic-foot volume, total aboveground biomass, biomass of tree components, and carbon pool estimates
     
+    
+    
+    argList_v210 <- argList_v207 <- argList
+    
+    
+    
     variables <- tribble(
-      ~snum,  ~description,
+      ~snum_v210,  ~snum_v207,
       # Volume
-      11001, "Gross total-stem wood volume of live trees (timber species at least 1 inch d.b.h.), in cubic feet, on forest land",
-      11002, "Gross total-stem bark volume of live trees (timber species at least 1 inch d.b.h.), in cubic feet, on forest land",
-      
+      # 11001, "Gross total-stem wood volume of live trees (timber species at least 1 inch d.b.h.), in cubic feet, on forest land",
+      # 11002, "Gross total-stem bark volume of live trees (timber species at least 1 inch d.b.h.), in cubic feet, on forest land",
       # 574173, "Gross bole wood volume of live trees (timber species at least 5 inches d.b.h.), in cubic feet, on forest land",
       # 11009,  "Gross bole bark volume of live trees (timber species at least 5 inches d.b.h.), in cubic feet, on forest land",
       # 11005,  "Gross stump wood volume of live trees (timber species at least 5 inches d.b.h.), in cubic feet, on forest land",
@@ -179,43 +187,79 @@ library(httr)         # EVALIDator query
       # 11010, "Gross stem-top (above 4-inch top diameter) wood volume of live trees (timber species at least 5 inches d.b.h.), in cubic feet, on forest land",
       # 11011, "	Gross stem-top (above 4-inch top diameter) bark volume of live trees (timber species at least 5 inches d.b.h.), in cubic feet, on forest land",
       
-      # Aboveground biomass
-      10, "Aboveground biomass of live trees (at least 1 inch d.b.h./d.r.c.), in dry short tons, on forest land",
+      # Aboveground biomass tons
+         10,       10, # Aboveground biomass of live trees (at least 1 inch d.b.h./d.r.c.), in dry short tons, on forest land
+      60000,       60, # Aboveground biomass of live trees (woodland species at least 1 inch d.r.c.), in dry short tons, on forest land
+      11000,       11, # Merchantable bole bark and wood biomass of live trees (timber species at least 5 inches d.b.h.), in dry short tons, on forest land
+      56000,       56, # Top and limb bark and wood biomass of live trees (timber species at least 5 inches d.b.h.), in dry short tons, on forest land
+      57000,       57, # Aboveground biomass of live saplings (timber species at least 1 and less than 5 inches d.b.h.), in dry short tons, on forest land
+      58000,       58, # Stump bark and wood biomass of live trees (timber species at least 5 inches d.b.h.), in dry short tons, on forest land
+         59,       59, # Belowground biomass of live trees (at least 1 inch d.b.h./d.r.c.), in dry short tons, on forest land
       
-      # Aboveground carbon
-      53000, "Aboveground carbon in live trees (at least 1 inch d.b.h./d.r.c.), in short tons, on forest land"
+         96,       96, # Aboveground biomass of standing dead trees (at least 5 inches d.b.h./d.r.c.), in dry short tons, on forest land
+
+      # carbon tons
+      53000,       53, # Aboveground carbon in live trees (at least 1 inch d.b.h./d.r.c.), in short tons, on forest land
+      54000,       54, # Belowground carbon in live trees (at least 1 inch d.b.h./d.r.c.), in short tons, on forest land
+      55000,       55, # Aboveground and belowground carbon in live trees (at least 1 inch d.b.h./d.r.c.), in short tons, on forest land
+      47000,       47, # Aboveground and belowground carbon in standing dead trees (at least 1 inch d.b.h./d.r.c.), in short tons, on forest land
+         97,       97, # Total carbon, in short tons, on forest land
+         
+      # Total carbon tonnes
+         
+
     )
       
   
     t <- Sys.time()
     
-    fia_totals <- NULL
+    evalidator_v210<- NULL
+    evalidator_v207<- NULL
     
-    for(j in seq(variables$snum)){
-      argList$snum = variables$snum[j]
+    for(j in seq(variables$snum_v210)){
+      argList_v210$snum = variables$snum_v210[j]
+      argList_v207$snum = variables$snum_v207[j]
       
       for(i in seq(wc$EVAL_GRP)){
-        argList$wc = wc$EVAL_GRP[i]
-        fia_totals <- fia_totals %>%
-          rbind(bind_cols(VARIABLE = variables$snum[j],
-                          STATE = wc$STATE[i],
-                          YEAR = wc$YEAR[i],
-                          EVAL_GRP = wc$EVAL_GRP[i],
-                          EVALIDator(argList) %>% rename_all(~paste0(., "_v210")),
-                          EVALIDator(argList, static = T) %>% rename_all(~paste0(., "_v207")) 
-                          )
-                )
-        print(c(variables$snum[j],wc$EVAL_GRP[i]))
+        argList_v210$wc = wc$EVAL_GRP[i]
+        argList_v207$wc = wc$EVAL_GRP[i]
+        
+        evalidator_v210 <- evalidator_v210 %>%
+                bind_rows(bind_cols(VARIABLE = variables$snum_v210[j],
+                                    EVAL_GRP = wc$EVAL_GRP[i],
+                                    EVALIDator(argList_v210)))
+
+        evalidator_v207 <- evalidator_v207 %>%
+          bind_rows(bind_cols(VARIABLE = variables$snum_v207[j],
+                              EVAL_GRP = wc$EVAL_GRP[i],
+                              EVALIDator(argList_v207, static = T)))
+                
+        print(c(j, i, variables$snum_v210[j], wc$EVAL_GRP[i]))
       }
       
     }
     
     Sys.time() - t
     
-    fia_totals <- fia_totals %>% 
-      mutate_all(unlist)
+    evalidator_v210 <- evalidator_v210 %>% 
+      replace(.=="NULL", NA) %>% 
+      mutate_all(unlist) 
+
+    evalidator_v207 <- evalidator_v207 %>% 
+      replace(.=="NULL", NA) %>% 
+      mutate_all(unlist) 
     
-    write.csv(fia_totals,"./output/forestland_totals.csv", row.names = F)  
+    evalidator_data <- evalidator_v210 %>% 
+      left_join(evalidator_v207, 
+                by = c("VARIABLE", "EVAL_GRP", "GRP1", "GRP2"),
+                suffix = c(".v210", ".v207")) %>% 
+      mutate(FORTYPGRPCD = as.numeric(substr(GRP1, 2, 5)),
+             FORTYPGRPDES = substr(GRP1, 7, length(GRP1)),
+             STDORGCD = as.numeric(substr(GRP2, 2, 5)),
+             STDORGDES = substr(GRP2, 7, length(GRP2)))
+
+    
+    write.csv(fia_totals,"./output/forestland_AGB_AGC.csv", row.names = F)  
   
 
 # Recycling ---------------------------------------------------------------
